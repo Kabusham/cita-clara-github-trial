@@ -1,6 +1,7 @@
 """Comprueba el acceso a la página oficial, sin consultar citas ni enviar datos."""
 from urllib.parse import urlparse
 
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
 
@@ -53,12 +54,18 @@ def main():
                 raise RuntimeError("El destino ya no coincide con el dominio oficial ICP+.")
 
             try:
-                portal_response = page.goto(
-                    target, wait_until="domcontentloaded", timeout=45000
-                )
+                # `commit` records the initial server response even if the portal
+                # keeps loading scripts or never reaches DOMContentLoaded.
+                portal_response = page.goto(target, wait_until="commit", timeout=45000)
                 portal_status = portal_response.status if portal_response else "sin respuesta"
-                print(f"ICP+: HTTP {portal_status} · título: {page.title()}")
-                text = (page.locator("body").inner_text() or "")[:6000].lower()
+                print(f"ICP+: respuesta inicial HTTP {portal_status}")
+                try:
+                    page.wait_for_load_state("domcontentloaded", timeout=15000)
+                    fully_loaded = True
+                except PlaywrightTimeoutError:
+                    fully_loaded = False
+                print(f"Título: {page.title() or '(aún no disponible)'}")
+                text = (page.locator("body").inner_text(timeout=5000) or "")[:6000].lower()
                 if any(
                     term in text
                     for term in (
@@ -76,6 +83,12 @@ def main():
                     raise SystemExit(2)
                 if portal_response and portal_response.status >= 400:
                     raise RuntimeError("ICP+ respondió con un error HTTP.")
+                if not fully_loaded:
+                    print(
+                        "Resultado: ICP+ respondió, pero la página no terminó de "
+                        "cargar. No se puede confirmar el acceso al formulario."
+                    )
+                    raise SystemExit(1)
                 print(
                     "Resultado: se comprobó el acceso a la página inicial de ICP+. "
                     "No se consultaron trámites ni disponibilidad de citas."
