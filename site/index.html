@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102b46">
+  <title>Cita Clara · prueba gratuita</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="top"><a class="brand" href="#"><span class="logo">C</span><span>Cita Clara<small>PRUEBA GRATUITA</small></span></a><span class="pill">GitHub · sin coste</span></header>
+  <main>
+    <section id="welcome" class="welcome card">
+      <div class="eyebrow">ESPACIO LOCAL</div><h1>Seguimiento de citas de extranjería</h1>
+      <p>Esta prueba guarda los datos del cliente cifrados en este navegador. La solicitud de búsqueda que se envía a GitHub solo contiene provincia, localidad, oficina y trámite.</p>
+      <label>Clave local<input id="passphrase" type="password" minlength="10" autocomplete="current-password" placeholder="Crea una frase de al menos 10 caracteres"></label>
+      <button id="unlock" class="primary">Crear o abrir el espacio</button>
+      <p class="muted">No pierdas la clave: GitHub no puede recuperarla. Usa datos de prueba mientras comprobamos el flujo.</p>
+    </section>
+    <section id="workspace" hidden>
+      <div class="heading"><div><div class="eyebrow">PORTAL OFICIAL</div><h1>Solicitudes</h1><p>Selecciona provincia, localidad, cualquier oficina o una oficina concreta y el trámite.</p></div><a class="button secondary" href="https://mptmd.sede.gob.es/pagina?id=Extranjeria-cita-previa-extranjeria" target="_blank" rel="noopener">Abrir portal oficial ↗</a></div>
+      <div class="notice"><strong>Modo de prueba gratuito:</strong> los criterios que publiques como GitHub Issue serán públicos. No incluyas datos del cliente. GitHub Actions puede ejecutar el flujo cada 10 minutos, pero el portal puede retrasar el acceso y la automatización se detendrá ante CAPTCHA, bloqueo o cambios inesperados. No reserva citas.</div>
+      <div class="layout">
+        <section class="card"><h2>Nueva solicitud</h2>
+          <form id="request-form">
+            <label>Referencia local del cliente<input id="client" maxlength="100" required placeholder="Ej.: Cliente 001"></label>
+            <div class="grid">
+              <label>Provincia *<select id="province" required><option value="">Selecciona una provincia</option></select></label>
+              <label>Localidad *<select id="city" required disabled><option value="">Selecciona una localidad</option></select></label>
+              <label class="wide">Oficina *<select id="office" required disabled><option value="">Selecciona una oficina</option></select></label>
+              <label class="wide">Trámite *<select id="procedure" required disabled><option value="">Selecciona un trámite</option></select></label>
+              <label>Desde<input id="from" type="date"></label><label>Hasta<input id="to" type="date"></label>
+            </div>
+            <button class="primary" type="submit">Guardar y preparar búsqueda</button>
+          </form>
+          <div id="result" class="result" hidden></div>
+        </section>
+        <section class="card"><div class="row"><h2>Historial local</h2><button id="lock" class="secondary small">Cerrar espacio</button></div><div id="history" class="history"><p class="muted">No hay solicitudes guardadas.</p></div></section>
+      </div>
+      <footer>Directorio de oficinas: <span id="directory-date">cargando…</span>. Las oficinas y trámites del directorio no confirman que haya citas disponibles.</footer>
+    </section>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
