@@ -1,4 +1,5 @@
 """Monitors only explicitly verified recipes from public GitHub issues."""
+import asyncio
 import json
 import os
 import sys
@@ -52,7 +53,7 @@ def last_marker_comment(issue_number):
 
 def post_status(issue, state, message, slots=None):
     stamp = f"<!-- CITA-CLARA-STATUS:{state} -->"
-    details = "\n".join(f"- {s['date']} · [Revisar en portal oficial]({s['url']})" for s in slots or [])
+    details = "\n".join(f"- {s['date']} Â· [Revisar en portal oficial]({s['url']})" for s in slots or [])
     body = f"{stamp}\n**Estado de la prueba:** {message}\n\n{details}\n\nEste aviso no reserva la cita. Comprueba la disponibilidad en el portal oficial antes de actuar."
     if last_marker_comment(issue["number"]) == stamp:
         return False
@@ -65,7 +66,7 @@ def alert_telegram():
     chat = os.getenv("TELEGRAM_CHAT_ID", "")
     if not bot or not chat:
         return
-    body = urllib.parse.urlencode({"chat_id": chat, "text": "Cita Clara: se detectó una posible disponibilidad. Revísala en el portal oficial; no se ha reservado ninguna cita."}).encode()
+    body = urllib.parse.urlencode({"chat_id": chat, "text": "Cita Clara: se detectÃ³ una posible disponibilidad. RevÃ­sala en el portal oficial; no se ha reservado ninguna cita."}).encode()
     req = urllib.request.Request(f"https://api.telegram.org/bot{bot}/sendMessage", data=body, method="POST")
     with urllib.request.urlopen(req, timeout=15):
         pass
@@ -86,7 +87,7 @@ async def run():
                 continue
             recipe = choose_recipe(verified, {"type": request["procedure"], "province": request["province"]})
             if recipe is None:
-                post_status(issue, "not-verified", "Esta provincia y trámite aún no tienen una integración verificada. No se consultó disponibilidad.")
+                post_status(issue, "not-verified", "Esta provincia y trÃ¡mite aÃºn no tienen una integraciÃ³n verificada. No se consultÃ³ disponibilidad.")
                 continue
             request["type"] = request["procedure"]
             try:
@@ -95,12 +96,12 @@ async def run():
                 post_status(issue, exc.state, exc.message)
                 continue
             if slots:
-                changed = post_status(issue, "availability", "Posible disponibilidad detectada. Compruébala manualmente en el portal oficial.", slots)
+                changed = post_status(issue, "availability", "Posible disponibilidad detectada. CompruÃ©bala manualmente en el portal oficial.", slots)
                 if changed:
                     alert_telegram()
             else:
-                post_status(issue, "checked-empty", "Comprobación completada: no se detectó una cita dentro del periodo solicitado.")
+                post_status(issue, "checked-empty", "ComprobaciÃ³n completada: no se detectÃ³ una cita dentro del periodo solicitado.")
         except Exception as exc:
-            post_status(issue, "error", f"No se pudo completar esta comprobación ({type(exc).__name__}). Se detuvo sin reservar citas ni eludir verificaciones humanas.")
+            post_status(issue, "error", f"No se pudo completar esta comprobaciÃ³n ({type(exc).__name__}). Se detuvo sin reservar citas ni eludir verificaciones humanas.")
 
 asyncio.run(run())
