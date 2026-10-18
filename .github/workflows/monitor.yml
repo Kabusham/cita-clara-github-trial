@@ -1,0 +1,42 @@
+name: Prueba gratuita de búsqueda
+on:
+  schedule:
+    - cron: '3,13,23,33,43,53 * * * *'
+  workflow_dispatch:
+    inputs:
+      probe_portal:
+        description: 'Comprobar la respuesta del portal oficial (no busca citas)'
+        required: false
+        type: boolean
+        default: false
+  issues:
+    types: [opened, reopened]
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: cita-clara-monitor
+  cancel-in-progress: false
+jobs:
+  monitor:
+    if: ${{ github.event_name != 'issues' || github.actor == github.repository_owner }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt && python -m playwright install --with-deps chromium
+      - name: Comprobar acceso al portal oficial
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.probe_portal }}
+        run: python scripts/probe_portal.py
+      - name: Revisar solicitudes públicas
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.probe_portal }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scripts/monitor.py
