@@ -1,8 +1,18 @@
 """Monitors only explicitly verified recipes from public GitHub issues."""
 import json
 import os
+import sys
 import urllib.parse
 import urllib.request
+from pathlib import Path
+
+# When invoked as `python scripts/monitor.py`, Python puts `scripts/` rather
+# than the repository root on sys.path. Add the root so `portal.py` imports
+# consistently in GitHub Actions and in local runs.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from portal import PortalStop, check, load_recipes, choose_recipe
 
 TOKEN = os.environ["GH_TOKEN"]
@@ -62,7 +72,7 @@ def alert_telegram():
 
 
 async def run():
-    recipes = load_recipes("config/recipes.json")
+    recipes = load_recipes(str(PROJECT_ROOT / "config" / "recipes.json"))
     verified = [r for r in recipes if r.get("verified") is True]
     issues = api("/issues?state=open&per_page=100")
     for issue in issues:
