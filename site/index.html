@@ -23,7 +23,12 @@
       <div class="layout">
         <section class="card"><h2>Nueva solicitud</h2>
           <form id="request-form">
-            <label>Referencia local del cliente<input id="client" maxlength="100" required placeholder="Ej.: Cliente 001"></label>
+            <label>Nombre y apellidos *<input id="client" maxlength="100" required autocomplete="name" placeholder="Nombre completo del cliente"></label>
+            <div class="grid">
+              <label>Tipo de documento *<select id="document-type" required><option value="identity">Documento de identidad (DNI / NIE)</option><option value="passport">Pasaporte</option></select></label>
+              <label>Número de documento *<input id="document-number" maxlength="40" required autocomplete="off" spellcheck="false" placeholder="Número de identidad o pasaporte"></label>
+            </div>
+            <p class="muted">El nombre y el documento se guardan cifrados solo en este navegador. No se envían a GitHub ni se usan todavía para consultar el portal oficial.</p>
             <div class="grid">
               <label>Provincia *<select id="province" required><option value="">Selecciona una provincia</option></select></label>
               <label>Localidad *<select id="city" required disabled><option value="">Selecciona una localidad</option></select></label>
