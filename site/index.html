@@ -15,20 +15,27 @@
       <p>Esta prueba guarda los datos del cliente cifrados en este navegador. La solicitud de búsqueda que se envía a GitHub solo contiene provincia, localidad, oficina y trámite.</p>
       <label>Clave local<input id="passphrase" type="password" minlength="10" autocomplete="current-password" placeholder="Crea una frase de al menos 10 caracteres"></label>
       <button id="unlock" class="primary">Crear o abrir el espacio</button>
-      <p class="muted">No pierdas la clave: GitHub no puede recuperarla. Usa datos de prueba mientras comprobamos el flujo.</p>
+      <p class="muted">No pierdas la clave: GitHub no puede recuperarla. Los datos personales se guardan solo en este navegador; no se comparten con otros dispositivos ni con el administrador del sitio.</p>
     </section>
     <section id="workspace" hidden>
-      <div class="heading"><div><div class="eyebrow">PORTAL OFICIAL</div><h1>Solicitudes</h1><p>Selecciona provincia, localidad, cualquier oficina o una oficina concreta y el trámite.</p></div><a class="button secondary" href="https://mptmd.sede.gob.es/pagina?id=Extranjeria-cita-previa-extranjeria" target="_blank" rel="noopener">Abrir portal oficial ↗</a></div>
-      <div class="notice"><strong>Modo de prueba gratuito:</strong> los criterios que publiques como GitHub Issue serán públicos. No incluyas datos del cliente. GitHub Actions puede ejecutar el flujo cada 10 minutos, pero el portal puede retrasar el acceso y la automatización se detendrá ante CAPTCHA, bloqueo o cambios inesperados. No reserva citas.</div>
+      <div class="heading"><div><div class="eyebrow">SERVICIO INDEPENDIENTE</div><h1>Solicitudes</h1><p>Selecciona provincia, cualquier localidad o una localidad concreta, oficina y trámite.</p></div><a class="button secondary" href="https://mptmd.sede.gob.es/pagina?id=Extranjeria-cita-previa-extranjeria" target="_blank" rel="noopener">Abrir portal oficial ↗</a></div>
+      <div class="notice"><strong>Modo de prueba gratuito:</strong> los criterios que publiques como GitHub Issue serán públicos. No incluyas datos del cliente. La programación solicita una revisión cada 10 minutos, pero GitHub puede retrasarla. La automatización se detendrá ante CAPTCHA, bloqueo o cambios inesperados. No reserva citas.</div>
+      <div class="notice" role="status"><strong>Búsqueda automática pendiente de verificación.</strong> La prueba del 22/10/2026 abrió la página informativa, pero ICP+ no respondió en 45 segundos. No se comprobó disponibilidad en ninguna provincia. <a href="https://github.com/Kabusham/cita-clara-github-trial/actions/runs/39696147967" target="_blank" rel="noopener">Ver comprobación</a></div>
       <div class="layout">
         <section class="card"><h2>Nueva solicitud</h2>
           <form id="request-form">
-            <label>Nombre y apellidos *<input id="client" maxlength="100" required autocomplete="name" placeholder="Nombre completo del cliente"></label>
+            <h3>Datos privados del cliente</h3>
+            <p class="muted">Estos datos se guardan cifrados solo en este navegador. No se incluyen en la solicitud pública de búsqueda de GitHub.</p>
             <div class="grid">
-              <label>Tipo de documento *<select id="document-type" required><option value="identity">Documento de identidad (DNI / NIE)</option><option value="passport">Pasaporte</option></select></label>
-              <label>Número de documento *<input id="document-number" maxlength="40" required autocomplete="off" spellcheck="false" placeholder="Número de identidad o pasaporte"></label>
+              <label class="wide">Nombre y apellidos *<input id="client-name" maxlength="150" autocomplete="name" required></label>
+              <label>Tipo de documento *<select id="document-type" required><option value="">Selecciona el tipo</option><option value="DNI">DNI</option><option value="NIE">NIE</option><option value="Pasaporte">Pasaporte</option><option value="Otro">Otro documento</option></select></label>
+              <label>Número de documento *<input id="document-number" maxlength="40" autocomplete="off" required></label>
+              <label>Teléfono de contacto *<input id="client-phone" type="tel" maxlength="40" autocomplete="tel" required></label>
+              <label>Correo electrónico (contacto, sin alertas activas)<input id="client-email" type="email" maxlength="254" autocomplete="email"></label>
+              <label class="wide">Referencia local<input id="client" maxlength="100" placeholder="Ej.: Cliente 001"></label>
             </div>
-            <p class="muted">El nombre y el documento se guardan cifrados solo en este navegador. No se envían a GitHub ni se usan todavía para consultar el portal oficial.</p>
+            <label class="consent"><input id="client-consent" type="checkbox" required><span>Confirmo que tengo autorización para guardar estos datos personales en este navegador.</span></label>
+            <h3>Criterios de búsqueda</h3>
             <div class="grid">
               <label>Provincia *<select id="province" required><option value="">Selecciona una provincia</option></select></label>
               <label>Localidad *<select id="city" required disabled><option value="">Selecciona una localidad</option></select></label>
@@ -38,7 +45,7 @@
             </div>
             <button class="primary" type="submit">Guardar y preparar búsqueda</button>
           </form>
-          <div id="result" class="result" hidden></div>
+          <div id="result" class="result" role="status" aria-live="polite" hidden></div>
         </section>
         <section class="card"><div class="row"><h2>Historial local</h2><button id="lock" class="secondary small">Cerrar espacio</button></div><div id="history" class="history"><p class="muted">No hay solicitudes guardadas.</p></div></section>
       </div>
