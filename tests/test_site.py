@@ -113,7 +113,7 @@ class SiteTests(unittest.TestCase):
 
     def test_storage_failure_keeps_form_and_does_not_create_record(self):
         self.fill_client()
-        self.page.evaluate("Storage.prototype.setItem = function(){throw new DOMException('Test quota', 'QuotaExceededError')}")
+        self.page.evaluate("() => { Storage.prototype.setItem = function(){throw new DOMException('Test quota', 'QuotaExceededError')}; }")
         self.page.locator('button[type="submit"]').click()
         expect(self.page.locator("#result")).to_contain_text("No se pudo guardar")
         expect(self.page.locator("#client-name")).to_have_value("Persona Ficticia Prueba")
