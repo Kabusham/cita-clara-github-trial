@@ -1,5 +1,11 @@
 name: Prueba gratuita de búsqueda
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/monitor.yml'
+      - 'requirements.txt'
+      - 'scripts/probe_portal.py'
   schedule:
     - cron: '3,13,23,33,43,53 * * * *'
   workflow_dispatch:
@@ -30,10 +36,10 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt && python -m playwright install --with-deps chromium
       - name: Comprobar acceso al portal oficial
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.probe_portal }}
+        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.probe_portal) }}
         run: python scripts/probe_portal.py
       - name: Revisar solicitudes públicas
-        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.probe_portal }}
+        if: ${{ github.event_name != 'push' && (github.event_name != 'workflow_dispatch' || !inputs.probe_portal) }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPOSITORY: ${{ github.repository }}
