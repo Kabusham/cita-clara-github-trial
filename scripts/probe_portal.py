@@ -1,5 +1,8 @@
 """Comprueba el acceso a la página oficial, sin consultar citas ni enviar datos."""
 from urllib.parse import urlparse
+from datetime import datetime, timezone
+from time import monotonic
+import json
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
@@ -33,6 +36,8 @@ def find_official_link(page):
 
 
 def main():
+    started = monotonic()
+    print("Inicio de comprobación (UTC): " + datetime.now(timezone.utc).isoformat())
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         try:
@@ -89,6 +94,19 @@ def main():
                         "cargar. No se puede confirmar el acceso al formulario."
                     )
                     raise SystemExit(1)
+                # Only read public selection controls before entering any identity data.
+                # This provides observed labels/values for subsequent reviewed integration.
+                controls = page.locator("select").evaluate_all(
+                    """nodes => nodes.map(s => ({
+                        id: s.id, name: s.name,
+                        options: Array.from(s.options).map(o => ({
+                            value: o.value, label: o.text.trim(), disabled: o.disabled
+                        }))
+                    }))"""
+                )
+                print("Selectores públicos observados: " + json.dumps(controls, ensure_ascii=False))
+                if not controls:
+                    print("No se identificaron listas de selección; el formulario sigue sin verificar.")
                 print(
                     "Resultado: se comprobó el acceso a la página inicial de ICP+. "
                     "No se consultaron trámites ni disponibilidad de citas."
@@ -100,6 +118,7 @@ def main():
                 raise SystemExit(1)
         finally:
             browser.close()
+            print(f"Duración de la comprobación: {monotonic() - started:.1f} segundos")
 
 
 if __name__ == "__main__":
