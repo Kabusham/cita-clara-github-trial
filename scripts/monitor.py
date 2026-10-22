@@ -85,6 +85,12 @@ def alert_telegram():
 async def run():
     recipes = load_recipes(str(PROJECT_ROOT / "config" / "recipes.json"))
     verified = [r for r in recipes if r.get("verified") is True]
+    print(f"Integraciones verificadas: {len(verified)}")
+    if not verified:
+        print("::warning::Búsqueda no habilitada: no hay integraciones verificadas. No se comprobarán citas.")
+    telegram_ready = bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID"))
+    print("Telegram: " + ("configurado; envío no comprobado en esta ejecución" if telegram_ready else "no configurado"))
+    counts = {"solicitudes": 0, "sin_integracion": 0, "intentos": 0, "completadas": 0}
     issues = api("/issues?state=open&per_page=100")
     for issue in issues:
         if "pull_request" in issue:
@@ -95,13 +101,17 @@ async def run():
             request = request_from_issue(issue)
             if request is None:
                 continue
+            counts["solicitudes"] += 1
             recipe = choose_recipe(verified, {"type": request["procedure"], "province": request["province"]})
             if recipe is None:
+                counts["sin_integracion"] += 1
                 post_status(issue, "not-verified", "Esta provincia y trámite aún no tienen una integración verificada. No se consultó disponibilidad.")
                 continue
             request["type"] = request["procedure"]
             try:
+                counts["intentos"] += 1
                 slots = await check(request, recipe)
+                counts["completadas"] += 1
             except PortalStop as exc:
                 post_status(issue, exc.state, exc.message)
                 continue
@@ -113,6 +123,19 @@ async def run():
                 post_status(issue, "checked-empty", "Comprobación completada: no se detectó una cita dentro del periodo solicitado.")
         except Exception as exc:
             post_status(issue, "error", f"No se pudo completar esta comprobación ({type(exc).__name__}). Se detuvo sin reservar citas ni eludir verificaciones humanas.")
+
+    summary = (
+        "## Resultado del monitor\n\n"
+        f"- Solicitudes válidas del propietario: {counts['solicitudes']}\n"
+        f"- Sin integración verificada: {counts['sin_integracion']}\n"
+        f"- Intentos de consulta al portal: {counts['intentos']}\n"
+        f"- Comprobaciones de disponibilidad completadas: {counts['completadas']}\n\n"
+        "Una ejecución correcta del programa no demuestra disponibilidad ni acceso al portal.\n"
+    )
+    print(summary)
+    if os.getenv("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as output:
+            output.write(summary)
 
 if __name__ == "__main__":
     asyncio.run(run())
