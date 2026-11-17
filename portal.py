@@ -24,29 +24,33 @@ def choose_recipe(recipes, request):
                  and (r.get('provinces') == '*' or request['province'] in r.get('provinces', []))), None)
 
 
+def parse_slot_date(value):
+    match = re.fullmatch(r'\s*(\d{2})/(\d{2})/(\d{4})\s*', value)
+    if not match:
+        return None
+    day, month, year = map(int, match.groups())
+    try:
+        return date(year, month, day).isoformat()
+    except ValueError:
+        return None
+
+
 def matching_slots(raw_dates, request, url):
-    result = []
     today = datetime.now(ZoneInfo('Europe/Madrid')).date().isoformat()
     lower = max(today, request.get('from') or today)
     upper = request.get('to') or '9999-12-31'
-    for value in raw_dates:
-        # Read only explicit slot elements from a verified recipe, never whole-page dates.
-        match = re.fullmatch(r'\s*(\d{2})/(\d{2})/(\d{4})\s*', value)
-        if not match:
-            continue
-        day, month, year = map(int, match.groups())
-        try:
-            iso = date(year, month, day).isoformat()
-        except ValueError:
-            continue
-        if lower <= iso <= upper and not any(s['date'] == iso for s in result):
-            # Session URLs may contain identity/session material; return only the entry URL.
-            result.append({'date':iso,'url':url})
-    return result
+    dates = {iso for value in raw_dates if (iso := parse_slot_date(value)) and lower <= iso <= upper}
+    # Use the entry URL; session URLs may contain identity or session data.
+    return [{'date': iso, 'url': url} for iso in sorted(dates)]
 
 
 async def inspect_guard(page):
+    location = urlparse(page.url)
+    if location.scheme != 'https' or location.hostname not in ALLOWED_HOSTS:
+        raise PortalStop('configuration', 'La navegación salió del portal oficial.')
     body = (await page.locator('body').inner_text())[:40000].lower()
+    if any(t in body for t in ('request rejected', 'access denied', 'unusual traffic')):
+        raise PortalStop('access_rejected', 'El portal ha rechazado la conexión.')
     if any(t in body for t in ('verify you are human','verifica que eres humano','comprueba que eres humano','captcha','unusual traffic','access denied')):
         raise PortalStop('needs_action', 'El portal solicita una verificación humana o ha rechazado la conexión. La búsqueda se ha detenido.')
     if await page.locator('iframe[src*="recaptcha"], iframe[src*="hcaptcha"]').count():
@@ -75,6 +79,8 @@ async def check(request, recipe):
             response = await page.goto(url, wait_until='domcontentloaded', timeout=45000)
             if response and response.status == 429:
                 raise PortalStop('needs_action', 'El portal ha pedido reducir las consultas. Se ha detenido la búsqueda.')
+            if response and response.status in (401, 403):
+                raise PortalStop('access_rejected', 'El portal ha rechazado la conexión.')
             if response and response.status >= 400:
                 raise PortalStop('error', 'El portal no ha respondido correctamente. Se volverá a intentar más tarde.')
             for step in recipe['steps']:
@@ -100,7 +106,7 @@ async def check(request, recipe):
             if await page.locator(recipe['empty_selector']).is_visible():
                 return []
             dates = await page.locator(recipe['slot_selector']).all_text_contents()
-            if not dates:
+            if not dates or not all(parse_slot_date(value) for value in dates):
                 raise PortalStop('configuration', 'No apareció un resultado claro. Esto no se considera prueba de que no haya citas.')
             return matching_slots(dates, request, url)
         finally:

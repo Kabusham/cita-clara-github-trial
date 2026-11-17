@@ -1,0 +1,45 @@
+name: Cita Clara · Site privado
+on:
+  schedule:
+    - cron: '6,16,26,36,46,56 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cita-clara-site.yml'
+      - 'scripts/site_bridge.py'
+      - 'config/recipes.json'
+      - 'portal.py'
+permissions:
+  contents: read
+  id-token: write
+  statuses: write
+concurrency:
+  group: cita-clara-private-site
+  cancel-in-progress: false
+jobs:
+  sync:
+    if: github.repository == 'Kabusham/cita-clara-github-trial' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Preparar navegador para recetas verificadas
+        shell: bash
+        run: |
+          if python -c 'import json,sys; sys.exit(not any(r.get("verified") is True for r in json.load(open("config/recipes.json"))))'; then
+            pip install -r requirements.txt
+            python -m playwright install --with-deps chromium
+          fi
+      - name: Sincronizar seguimiento y comprobar Telegram
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          CITA_CLARA_SITE_ACCESS: ${{ secrets.CITA_CLARA_SITE_ACCESS }}
+        run: python scripts/site_bridge.py
