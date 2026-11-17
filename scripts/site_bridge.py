@@ -62,8 +62,10 @@ class Telegram:
         return result.get("result")
 
     def health(self):
-        if not self.token or not self.chat:
-            return "MISSING_SECRETS"
+        if not self.token:
+            return "MISSING_BOT_TOKEN" if self.chat else "MISSING_SECRETS"
+        if not self.chat:
+            return "MISSING_CHAT_ID"
         try:
             if self.request("getMe") and self.request("getChat", chat_id=self.chat):
                 return "READY"
@@ -109,18 +111,23 @@ def send_alert(bridge, telegram, kind, locale, key=None):
     bridge.call("delivery", kind=kind, key=key, status=status)
 
 
-def report_public_health(status):
-    # Only a coarse provider health flag goes to the public GitHub repository.
+def report_public_status(context, status):
+    # Publish status codes only. Credentials and request data stay private.
     token = os.environ.get("GH_TOKEN")
     repo = os.environ.get("GITHUB_REPOSITORY")
     sha = os.environ.get("GITHUB_SHA")
-    if not token or not repo or not sha:
+    run_id = os.environ.get("GITHUB_RUN_ID")
+    if not all((token, repo, sha, run_id)):
         return
-    fetch(f"https://api.github.com/repos/{repo}/statuses/{sha}",
-          headers={"Authorization": "Bearer " + token, "Accept": "application/vnd.github+json",
-                   "User-Agent": "Cita-Clara-Monitor"},
-          data={"state": "success" if status == "READY" else "error", "context": "cita-clara/site",
-                "description": status, "target_url": f"https://github.com/{repo}/actions/runs/{os.environ['GITHUB_RUN_ID']}"})
+    try:
+        fetch(f"https://api.github.com/repos/{repo}/statuses/{sha}",
+              headers={"Authorization": "Bearer " + token, "Accept": "application/vnd.github+json",
+                       "User-Agent": "Cita-Clara-Monitor"},
+              data={"state": "success" if status in ("READY", "SITE_CONNECTED") else "error",
+                    "context": context, "description": status,
+                    "target_url": f"https://github.com/{repo}/actions/runs/{run_id}"})
+    except (OSError, ValueError):
+        print(f"GitHub could not record {context}.")
 
 
 async def check_one(bridge, telegram, recipes):
@@ -171,17 +178,21 @@ async def main():
     recipes = [recipe for recipe in load_recipes(ROOT / "config" / "recipes.json") if recipe.get("verified") is True]
     telegram = Telegram(os.getenv("TELEGRAM_BOT_TOKEN"), os.getenv("TELEGRAM_CHAT_ID"))
     state = telegram.health()
-    try:
-        report_public_health(state)
-    except (OSError, ValueError):
-        print("GitHub public health could not be updated.")
+    report_public_status("cita-clara/site", state)
     print(f"Telegram health: {state}. Verified portal recipes: {len(recipes)}.")
     access = os.getenv("CITA_CLARA_SITE_ACCESS")
+    connection_context = "cita-clara/site-connection"
     if not access:
-        print("Private Site connection is pending configuration.")
+        report_public_status(connection_context, "SITE_ACCESS_MISSING")
+        print("Site connection: SITE_ACCESS_MISSING.")
         return
     bridge = SiteBridge(access)
-    signal = bridge.call("heartbeat", recipes=len(recipes), telegram=state)
+    try:
+        signal = bridge.call("heartbeat", recipes=len(recipes), telegram=state)
+    except (OSError, KeyError, ValueError):
+        report_public_status(connection_context, "SITE_LINK_FAILED")
+        raise
+    report_public_status(connection_context, "SITE_CONNECTED")
     if signal.get("testKey"):
         send_alert(bridge, telegram, "test", signal["language"], signal["testKey"])
     if signal.get("recovered"):
